@@ -1,3 +1,4 @@
+"use strict";
 /* ===== Persist data with LevelDB ===================================
 |  Learn more: level: https://github.com/Level/level     |
 |  =============================================================*/
@@ -31,28 +32,66 @@ class Block {
 |  ================================================*/
 
 class Blockchain {
-  constructor() {
-    this.chain = [];
-    this.addBlock(new Block("First block in the chain - Genesis block"));
+  constructor(lastbock) {
+    if (typeof lastbock === "undefined") {
+      throw new Error("Cannot be called directly. Use the build method.");
+    }
+    this.lastbock = lastbock;
+  }
+
+  static async build() {
+    let height = await Blockchain.readBc();
+    if (!height)
+      await Blockchain.addBlock(
+        new Block("First block in the chain - Genesis block")
+      );
+    return new Blockchain(Blockchain.lastbock);
+  }
+
+  static readBc() {
+    return new Promise((resolve, reject) => {
+      let height = 0;
+      db.createReadStream()
+        .on("data", data => {
+          Blockchain.lastblock = JSON.parse(data.value);
+          console.log(`Processing block ${height}`, Blockchain.lastblock);
+          height++;
+        })
+        .on("error", err => {
+          console.log("Unable to read data stream!", err);
+          reject(err);
+        })
+        .on("close", () => {
+          console.log(`Found ${height} Block(s)`);
+          resolve(height);
+        });
+    });
   }
 
   // Add new block
   addBlock(newBlock) {
-    // Block height
-    newBlock.height = this.chain.length;
+    Blockchain.addBlockS(newBlock);
+  }
+  static async addBlockS(newBlock) {
     // UTC timestamp
     newBlock.time = new Date()
       .getTime()
       .toString()
       .slice(0, -3);
+    // Block height (0 for genesis block. lastbock does not exist yet)
+    const height = Blockchain.lastblock ? Blockchain.lastblock.height + 1 : 0;
+    newBlock.height = height;
+    console.log(`Adding Block ${height}`);
     // previous block hash
-    if (this.chain.length > 0) {
-      newBlock.previousBlockHash = this.chain[this.chain.length - 1].hash;
-    }
+    if (height > 0) newBlock.previousBlockHash = Blockchain.lastblock.hash;
     // Block hash with SHA256 using newBlock and converting to a string
     newBlock.hash = SHA256(JSON.stringify(newBlock)).toString();
-    // Adding block object to chain
-    this.chain.push(newBlock);
+    // Adding block object to db
+    await db.put(height, JSON.stringify(newBlock), function(err) {
+      if (err) return console.log("Block " + key + " submission failed", err);
+    });
+    Blockchain.lastblock = newBlock;
+    console.log(`Added Block ${height}`);
   }
 
   // Get block height
@@ -67,9 +106,7 @@ class Blockchain {
   }
 
   // validate block
-  validateBlock(blockHeight) {
-    // get block object
-    let block = this.getBlock(blockHeight);
+  validateBlock(block) {
     // get block hash
     let blockHash = block.hash;
     // remove block hash to test block integrity
@@ -94,27 +131,40 @@ class Blockchain {
 
   // Validate blockchain
   validateChain() {
+    const self = this;
     let errorLog = [];
-    for (var i = 0; i < this.chain.length - 1; i++) {
-      // validate block
-      if (!this.validateBlock(i)) errorLog.push(i);
-      // compare blocks hash link
-      let blockHash = this.chain[i].hash;
-      let previousHash = this.chain[i + 1].previousBlockHash;
-      if (blockHash !== previousHash) {
-        errorLog.push(i);
-      }
-    }
-    if (errorLog.length > 0) {
-      console.log("Block errors = " + errorLog.length);
-      console.log("Blocks: " + errorLog);
-    } else {
-      console.log("No errors detected");
-    }
+    let height = 0;
+    let previousHash = "";
+    db.createReadStream()
+      .on("data", function(data) {
+        height++;
+        const block = JSON.parse(data.value);
+        if (!self.validateBlock(block)) errorLog.push(height);
+        if (block.hash !== previousHash) {
+          errorLog.push(height);
+        }
+        previousHash = block.hash;
+      })
+      .on("error", function(err) {
+        return console.log("Unable to read data stream!", err);
+      })
+      .on("close", function() {
+        console.log(`Verified ${height} Block(s)`);
+
+        if (errorLog.length > 0) {
+          console.log("Block errors = " + errorLog.length);
+          console.log("Blocks: " + errorLog);
+        } else {
+          console.log("No errors detected");
+        }
+      });
   }
 }
 
+Blockchain.lastbock = null;
+
 module.exports = {
   Block,
-  Blockchain
+  Blockchain,
+  chainDB
 };

@@ -4,7 +4,8 @@
   "description": "",
   "main": "levelSandbox.js",
   "scripts": {
-    "test": "jest"
+    "test": "jest",
+    "test-db": "node --debug-brk --inspect ./node_modules/.bin/jest -i"
   },
   "author": "",
   "license": "ISC",
@@ -13,6 +14,7 @@
     "level": "^4.0.0"
   },
   "devDependencies": {
-    "jest": "^23.4.1"
+    "jest": "^23.4.1",
+    "rimraf": "^2.6.2"
   }
 }
