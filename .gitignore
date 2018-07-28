@@ -1,3 +1,5 @@
 node_modules/
 blockchain/
 chaindata/
+*.txt
+bc*.json

@@ -41,28 +41,35 @@ class Blockchain {
 
   static async build() {
     let height = await Blockchain.readBc();
-    if (!height)
-      await Blockchain.addBlock(
+    if (!height) {
+      await Blockchain.addBlockS(
         new Block("First block in the chain - Genesis block")
       );
-    return new Blockchain(Blockchain.lastbock);
+      height++;
+    }
+    return await new Blockchain(Blockchain.lastbock);
   }
 
-  static readBc() {
+  showBc() {
+    Blockchain.readBc(true);
+  }
+  static readBc(show = false) {
     return new Promise((resolve, reject) => {
       let height = 0;
+      if (show) console.log(`{ "result": [`);
       db.createReadStream()
         .on("data", data => {
           Blockchain.lastblock = JSON.parse(data.value);
-          console.log(`Processing block ${height}`, Blockchain.lastblock);
+          if (show) console.log(data.value + ",");
           height++;
         })
         .on("error", err => {
-          console.log("Unable to read data stream!", err);
+          console.error("Unable to read data stream!", err);
           reject(err);
         })
         .on("close", () => {
-          console.log(`Found ${height} Block(s)`);
+          if (show) console.log("]}");
+          if (!show) console.log(`Found ${height} Block(s)`);
           resolve(height);
         });
     });
@@ -81,17 +88,20 @@ class Blockchain {
     // Block height (0 for genesis block. lastbock does not exist yet)
     const height = Blockchain.lastblock ? Blockchain.lastblock.height + 1 : 0;
     newBlock.height = height;
-    console.log(`Adding Block ${height}`);
     // previous block hash
     if (height > 0) newBlock.previousBlockHash = Blockchain.lastblock.hash;
     // Block hash with SHA256 using newBlock and converting to a string
     newBlock.hash = SHA256(JSON.stringify(newBlock)).toString();
     // Adding block object to db
-    await db.put(height, JSON.stringify(newBlock), function(err) {
-      if (err) return console.log("Block " + key + " submission failed", err);
+    await db.put(newBlock.height, JSON.stringify(newBlock), function(err) {
+      if (err)
+        return console.log(
+          "Block " + newBlock.height + " submission failed",
+          err
+        );
     });
     Blockchain.lastblock = newBlock;
-    console.log(`Added Block ${height}`);
+    console.log(`Added Block ${height} - ${newBlock.body}`);
   }
 
   // Get block height
@@ -101,8 +111,11 @@ class Blockchain {
 
   // get block
   getBlock(blockHeight) {
-    // return object as a single string
-    return JSON.parse(JSON.stringify(this.chain[blockHeight]));
+    // Get data from levelDB with key
+    db.get(blockHeight, function(err, value) {
+      if (err) return console.log("Not found!", err);
+      return JSON.parse(value);
+    });
   }
 
   // validate block
