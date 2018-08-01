@@ -34,36 +34,55 @@ class Block {
 class Blockchain {
   constructor() {
     this.inProgress = Promise.resolve();
+    console.log("promise init");
     this.inProgress = this.inProgress.then(() => this.getHeight());
-    this.inProgress = this.inProgress.then(() => {
-      console.log("height =", this.height);
-      if (this.height === 0)
-        this.addBlock(new Block("First block in the chain - Genesis block"));
-      else Promise.resolve();
-    });
+    console.log("promise height");
     this.inProgress = this.inProgress.then(
       () =>
         new Promise((resolve, reject) => {
-          const height = this.height - 1;
-          this.getBlock(height)
-            .then(block => {
-              this.previousHash = block.hash;
-              resolve();
-            })
-            .catch(e => {
-              console.log("Failed getting block = ${height}.", e);
-              reject(e);
-            });
+          console.log("height =", this.height);
+          if (this.height === 0) {
+            this.addBlockPromise(
+              new Block("First block in the chain - Genesis block")
+            )
+              .then(block => {
+                this.previousHash = block.hash;
+                this.height = block.height + 1;
+                return resolve();
+              })
+              .catch(e => {
+                console.log("Failed adding genisis block.", e);
+                return reject(e);
+              });
+          } else {
+            const height = this.height - 1;
+            this.getBlock(height)
+              .then(block => {
+                this.previousHash = block.hash;
+                console.log(`got block ${height} with hast => ${block.hash}.`);
+                return resolve();
+              })
+              .catch(e => {
+                console.log("Failed resolving last block.", e);
+                return reject(e);
+              });
+          }
         })
     );
+    console.log("promise lastblock");
   }
 
-  cleanUp() {
+  finishActions() {
     return this.inProgress;
   }
+
   // Add new block
-  addBlock(newBlock) {
-    const nextAction = new Promise((resolve, reject) => {
+  addBlock(block) {
+    this.inProgress = this.inProgress.then(() => this.addBlockPromise(block));
+  }
+
+  addBlockPromise(newBlock, chain = true) {
+    return new Promise((resolve, reject) => {
       // UTC timestamp
       newBlock.time = new Date()
         .getTime()
@@ -71,6 +90,7 @@ class Blockchain {
         .slice(0, -3);
       // Block height
       newBlock.height = this.height;
+      debugger;
       // previous block hash
       if (this.height > 0) newBlock.previousBlockHash = this.previousHash;
       // Block hash with SHA256 using newBlock and converting to a string
@@ -87,11 +107,10 @@ class Blockchain {
         this.previousHash = newBlock.hash;
         this.height += 1;
         console.log(`Added block ${newBlock.height} => ${newBlock.body}`);
-        return resolve();
+        return resolve(newBlock);
       });
     });
-    this.inProgress = this.inProgress.then(_ => nextAction);
-    return this.inProgress;
+    console.log("promise add");
   }
 
   getHeight() {
@@ -132,7 +151,6 @@ class Blockchain {
       })(resolve, reject);
     });
     this.inProgress = this.inProgress.then(_ => nextAction);
-    return this.inProgress;
   }
 
   // Get block height

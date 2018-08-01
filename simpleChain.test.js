@@ -6,43 +6,29 @@ test("new blockchain", done => {
   rimraf(chainDB, e => {
     if (e) return console.log(e);
     let blockchain = new Blockchain();
-    blockchain.cleanUp().then(() => done());
+    blockchain.finishActions().then(() => done());
   });
 });
 
 test("show blockchain", done => {
   let blockchain = new Blockchain();
-  blockchain.showBc().then(() => done());
+  blockchain.showBc();
+  blockchain.finishActions().then(() => done());
 });
 
 test("add one to blockchain", done => {
   let blockchain = new Blockchain();
   blockchain.addBlock(new Block("test data carlton"));
-  blockchain.showBc().then(() => done());
+  //blockchain.showBc();
+  blockchain.finishActions().then(() => done());
 });
 
 test("add multiple to blockchain async", async done => {
   let blockchain = new Blockchain();
   for (let i = 0; i < 10; i++) {
-    console.log(`call ${i}`);
     blockchain.addBlock(new Block(`test data ${i}`));
   }
-  done();
-});
-
-test("add multiple to blockchain somehow", async () => {
-  let blockchain = await Blockchain();
-
-  async function addBlocks(arr) {
-    await arr.reduce(
-      (p, e) =>
-        p.then(async () => {
-          await blockchain.addBlock(new Block(`test data ${e}`));
-        }),
-      Promise.resolve()
-    );
-  }
-  addBlocks([...Array(10).keys()]);
+  blockchain.finishActions().then(() => done());
 });
 
 const fs = require("fs");
