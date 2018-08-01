@@ -32,35 +32,70 @@ class Block {
 |  ================================================*/
 
 class Blockchain {
-  constructor(lastbock) {
-    if (typeof lastbock === "undefined") {
-      throw new Error("Cannot be called directly. Use the build method.");
-    }
-    this.lastbock = lastbock;
+  constructor() {
+    this.inProgress = new Promise((resolve, reject) =>
+      (async (resolve, reject) => {
+        try {
+          this.height = await this.getHeight();
+          console.log(this.height);
+          if (this.height === 0) {
+            console.log("adding");
+            await this.addBlock(
+              new Block("First block in the chain - Genesis block")
+            );
+            console.log(
+              `Block ${this.lastblock.height} added => ${this.lastblock.body}`
+            );
+          } else {
+            console.log("reading");
+            this.lastblock = JSON.parse(await db.get(this.height - 1));
+            console.log(
+              `Last block ${this.height} seen =>`,
+              this.lastblock.body
+            );
+          }
+          resolve();
+        } catch (e) {
+          console.log("Failed blockchain initialization with", e);
+          reject();
+        }
+      })(resolve, reject)
+    );
   }
 
-  static async build() {
-    let height = await Blockchain.readBc();
-    if (!height) {
-      await Blockchain.addBlockS(
-        new Block("First block in the chain - Genesis block")
-      );
-      height++;
+  // Add new block
+  async addBlock(newBlock) {
+    try {
+      console.log(`Adding (inProgress = ${this.inProgress})`);
+      await this.inProgress;
+      console.log(`Adding block ${this.height} => ${newBlock.body}`);
+      // UTC timestamp
+      newBlock.time = new Date()
+        .getTime()
+        .toString()
+        .slice(0, -3);
+      // Block height (0 for genesis block. lastbock does not exist yet)
+      newBlock.height = this.height;
+      // previous block hash
+      if (this.height > 0) newBlock.previousBlockHash = this.lastblock.hash;
+      // Block hash with SHA256 using newBlock and converting to a string
+      newBlock.hash = SHA256(JSON.stringify(newBlock)).toString();
+      // Adding block object to db
+      await db.put(newBlock.height, JSON.stringify(newBlock));
+      this.lastblock = newBlock;
+      this.height += 1;
+      console.log(`Added block ${newBlock.height} => ${newBlock.body}`);
+    } catch (e) {
+      console.log(`Failed adding block ${this.height} => ${newBlock.body}`);
     }
-    return await new Blockchain(Blockchain.lastbock);
   }
 
-  showBc() {
-    Blockchain.readBc(true);
-  }
-  static readBc(show = false) {
+  getHeight() {
     return new Promise((resolve, reject) => {
       let height = 0;
-      if (show) console.log(`{ "result": [`);
       db.createReadStream()
         .on("data", data => {
-          Blockchain.lastblock = JSON.parse(data.value);
-          if (show) console.log(data.value + ",");
+          console.log(data.value);
           height++;
         })
         .on("error", err => {
@@ -68,40 +103,29 @@ class Blockchain {
           reject(err);
         })
         .on("close", () => {
-          if (show) console.log("]}");
-          if (!show) console.log(`Found ${height} Block(s)`);
           resolve(height);
         });
     });
   }
 
-  // Add new block
-  addBlock(newBlock) {
-    Blockchain.addBlockS(newBlock);
-  }
-  static async addBlockS(newBlock) {
-    // UTC timestamp
-    newBlock.time = new Date()
-      .getTime()
-      .toString()
-      .slice(0, -3);
-    // Block height (0 for genesis block. lastbock does not exist yet)
-    const height = Blockchain.lastblock ? Blockchain.lastblock.height + 1 : 0;
-    newBlock.height = height;
-    // previous block hash
-    if (height > 0) newBlock.previousBlockHash = Blockchain.lastblock.hash;
-    // Block hash with SHA256 using newBlock and converting to a string
-    newBlock.hash = SHA256(JSON.stringify(newBlock)).toString();
-    // Adding block object to db
-    await db.put(newBlock.height, JSON.stringify(newBlock), function(err) {
-      if (err)
-        return console.log(
-          "Block " + newBlock.height + " submission failed",
-          err
-        );
+  showBc() {
+    return new Promise((resolve, reject) => {
+      (async (resolve, reject) => {
+        console.log("showBc 0 -", this.inProgress);
+        try {
+          await this.inProgress;
+          console.log("showBc 1 -", this.height);
+          for (let height = 0; height < this.height; height++) {
+            const block = await db.get(height);
+            console.log(`Block ${height} => ${block}`);
+          }
+          resolve();
+        } catch (e) {
+          console.log("Show blockchain failed!");
+          reject();
+        }
+      })(resolve, reject);
     });
-    Blockchain.lastblock = newBlock;
-    console.log(`Added Block ${height} - ${newBlock.body}`);
   }
 
   // Get block height
@@ -110,12 +134,15 @@ class Blockchain {
   }
 
   // get block
-  getBlock(blockHeight) {
+  async getBlock(blockHeight) {
     // Get data from levelDB with key
-    db.get(blockHeight, function(err, value) {
-      if (err) return console.log("Not found!", err);
+    try {
+      const value = await db.get(blockHeight);
       return JSON.parse(value);
-    });
+    } catch (err) {
+      console.error(`Did not find with block with height ${blockHeight}.`, err);
+      return null;
+    }
   }
 
   // validate block

@@ -27,35 +27,40 @@ test.skip("generate block chain", () => {
   blockchain.validateChain();
 });
 
-test("delete blockchain", () => {
+test("new blockchain", async done => {
   // remove any previous presisted blockchains
-  rimraf.sync(chainDB, null, e => {
-    console.log(e);
-    return;
+  await rimraf(chainDB, async e => {
+    if (e) return console.log(e);
+    let blockchain = new Blockchain();
+    await blockchain.showBc();
   });
+  done();
 });
 
-test("show/create blockchain", async () => {
-  let blockchain = await Blockchain.build();
-  blockchain.showBc();
+test("show blockchain", async done => {
+  let blockchain = new Blockchain();
+  await blockchain.showBc();
+  done();
 });
 
-test("add one to blockchain", async () => {
-  let blockchain = await Blockchain.build();
-  console.log(blockchain);
-  blockchain.addBlock(new Block("test data carlton"));
+test("add one to blockchain", async done => {
+  let blockchain = new Blockchain();
+  await blockchain.addBlock(new Block("test data carlton"));
+  await blockchain.showBc();
+  done();
 });
 
-test("add multiple to blockchain not async", async () => {
-  let blockchain = await Blockchain.build();
+test("add multiple to blockchain async", async done => {
+  let blockchain = new Blockchain();
   for (let i = 0; i < 10; i++) {
     console.log(`call ${i}`);
     await blockchain.addBlock(new Block(`test data ${i}`));
   }
+  done();
 });
 
-test("add multiple to blockchain async", async () => {
-  let blockchain = await Blockchain.build();
+test("add multiple to blockchain somehow", async () => {
+  let blockchain = await Blockchain();
 
   async function addBlocks(arr) {
     await arr.reduce(
@@ -79,28 +84,14 @@ const getJson = () => {
     .split("\n")
     .filter(line => !line.includes("console"))
     .filter(line => line)
-    .filter(line => !line.includes("Found"));
-  const arr = noConsole.reduce(
-    (r, e) => {
-      if (e.includes("]")) return { save: false, result: [...r.result, e] };
-      if (e.includes("[")) return { save: true, result: [...r.result, e] };
-      if (r.save) return { save: r.save, result: [...r.result, e] };
-      return r;
-    },
-    { save: false, result: [] }
-  );
-  const r = arr.result;
-  const removeLastComma = [
-    ...r.slice(0, -2),
-    r.slice(-2)[0].replace("},", "}"),
-    r.slice(-1)[0]
-  ];
-  const prePretty = removeLastComma.join("\n");
-  const json = JSON.parse(prePretty);
+    .join(",\n");
+  const wrapper = `{ "result" : [ ${noConsole} ]}`;
+  const json = JSON.parse(wrapper);
   const pretty = JSON.stringify(json, null, 2);
   console.log(pretty);
   return json.result;
 };
+
 test("process", () => {
   const bc = getJson();
   const genisis = bc.filter(b => b.previousBlockHash === "");
@@ -109,7 +100,6 @@ test("process", () => {
   let next;
   let blocks = 0;
   do {
-    console.log(last);
     next = bc.filter(b => b.previousBlockHash === last.hash);
     if (next.length > 1) console.error("Error. Hash collision at " + last.hash);
     last = next[0];
@@ -156,4 +146,21 @@ test("scratchpad2", done => {
     );
   }
   fizz([1, 2, 3]); // invoke
+});
+
+test("scratchpad3", async done => {
+  console.log("scratchpad3");
+  const getNumberP = () =>
+    new Promise(resolve => setTimeout(() => resolve(1), 1000));
+  /* this works - uncomment to see it in action
+  getNumberP().then(n => {
+    console.log(n);
+    done();
+  });
+  */
+  const getNumber = async () => await getNumberP();
+  const number = getNumber();
+  console.log(await number);
+  console.log(await number);
+  done();
 });

@@ -5,23 +5,30 @@
   "main": "levelSandbox.js",
   "scripts": {
     "test": "jest",
-    "test-db": "node --debug-brk --inspect ./node_modules/.bin/jest -i",
-    "a": "jest -t \"delete blockchain\"",
-    "b": "jest -t \"show/create blockchain\"",
-    "c": "jest -t \"show/create blockchain\" > bc0.txt",
+    "test-db": "node --inspect-brk ./node_modules/.bin/jest -i",
+    "a": "jest -t \"new blockchain\"",
+    "a-d": "node --inspect-brk ./node_modules/.bin/jest -it \"new blockchain\"",
+    "b": "jest -t \"show blockchain\"",
+    "b-d":
+      "node --inspect-brk ./node_modules/.bin/jest -it \"show blockchain\"",
+    "c": "jest -t \"show blockchain\" > bc0.txt",
     "d": "FILE=bc0.txt jest -t \"process\" > bc0.json",
+    "d-d":
+      "FILE=bc0.txt node --inspect-brk ./node_modules/.bin/jest -it \"process\"",
     "e": "jest -t \"add one to blockchain\"",
-    "f": "jest -t \"show/create blockchain\" > bc1.txt",
+    "e-d":
+      "node --inspect-brk ./node_modules/.bin/jest -it \"add one to blockchain\"",
+    "f": "jest -t \"show blockchain\" > bc1.txt",
     "g": "FILE=bc1.txt jest -t \"process\" > bc1.json",
     "h": "jest -t \"add multiple to blockchain async\"",
     "h-d":
-      "node --debug-brk --inspect ./node_modules/.bin/jest -it \"add multiple to blockchain async\"",
-    "i": "jest -t \"show/create blockchain\" > bc2.txt",
+      "node --inspect-brk ./node_modules/.bin/jest -it \"add multiple to blockchain async\"",
+    "i": "jest -t \"show blockchain\" > bc2.txt",
     "j": "FILE=bc2.txt jest -t \"process\" > bc2.json",
     "k": "jest -t \"add multiple to blockchain async\"",
     "k-d":
-      "node --debug-brk --inspect ./node_modules/.bin/jest -it \"add multiple to blockchain async\"",
-    "l": "jest -t \"show/create blockchain\" > bc3.txt",
+      "node --inspect-brk ./node_modules/.bin/jest -it \"add multiple to blockchain async\"",
+    "l": "jest -t \"show blockchain\" > bc3.txt",
     "m": "FILE=bc3.txt jest -t \"process\" > bc3.json",
     "atom":
       "yarn a && yarn b && yarn c && yarn d && yarn e && yarn f && yarn g && yarn h && yarn i && yarn j && yarn k && yarn l && yarn m"
