@@ -34,13 +34,10 @@ class Block {
 class Blockchain {
   constructor() {
     this.inProgress = Promise.resolve();
-    console.log("promise init");
     this.inProgress = this.inProgress.then(() => this.getHeight());
-    console.log("promise height");
     this.inProgress = this.inProgress.then(
       () =>
         new Promise((resolve, reject) => {
-          console.log("height =", this.height);
           if (this.height === 0) {
             this.addBlockPromise(
               new Block("First block in the chain - Genesis block")
@@ -59,7 +56,6 @@ class Blockchain {
             this.getBlock(height)
               .then(block => {
                 this.previousHash = block.hash;
-                console.log(`got block ${height} with hast => ${block.hash}.`);
                 return resolve();
               })
               .catch(e => {
@@ -69,7 +65,6 @@ class Blockchain {
           }
         })
     );
-    console.log("promise lastblock");
   }
 
   finishActions() {
@@ -118,7 +113,6 @@ class Blockchain {
       let height = 0;
       db.createReadStream()
         .on("data", data => {
-          console.log(data.value);
           height++;
         })
         .on("error", err => {
@@ -135,13 +129,11 @@ class Blockchain {
   showBc() {
     const nextAction = new Promise((resolve, reject) => {
       (async (resolve, reject) => {
-        console.log("showBc 0 -", this.inProgress);
         try {
           await this.inProgress;
-          console.log("showBc 1 -", this.height);
           for (let height = 0; height < this.height; height++) {
             const block = await db.get(height);
-            console.log(`Block ${height} => ${block}`);
+            console.log(block);
           }
           resolve();
         } catch (e) {
@@ -175,7 +167,7 @@ class Blockchain {
   }
 
   // validate block
-  validateBlock(block) {
+  validateBlock(block, errorLog) {
     // get block hash
     let blockHash = block.hash;
     // remove block hash to test block integrity
@@ -186,7 +178,7 @@ class Blockchain {
     if (blockHash === validBlockHash) {
       return true;
     } else {
-      console.log(
+      errorLog.push(
         "Block #" +
           blockHeight +
           " invalid hash:\n" +
@@ -200,33 +192,31 @@ class Blockchain {
 
   // Validate blockchain
   validateChain() {
-    const self = this;
-    let errorLog = [];
-    let height = 0;
-    let previousHash = "";
-    db.createReadStream()
-      .on("data", function(data) {
-        height++;
-        const block = JSON.parse(data.value);
-        if (!self.validateBlock(block)) errorLog.push(height);
-        if (block.hash !== previousHash) {
-          errorLog.push(height);
-        }
-        previousHash = block.hash;
-      })
-      .on("error", function(err) {
-        return console.log("Unable to read data stream!", err);
-      })
-      .on("close", function() {
-        console.log(`Verified ${height} Block(s)`);
-
-        if (errorLog.length > 0) {
-          console.log("Block errors = " + errorLog.length);
-          console.log("Blocks: " + errorLog);
-        } else {
-          console.log("No errors detected");
-        }
-      });
+    this.inProgress = this.inProgress.then(
+      () =>
+        new Promise(async (resolve, reject) => {
+          let height = 0;
+          let previousBlock = null;
+          let errorLog = [];
+          do {
+            const block = await this.getBlock(height);
+            this.validateBlock(block, errorLog);
+            if (previousBlock && previousBlock.hash !== block.previousBlockHash)
+              errorLog.push(
+                "Block #" +
+                  block.height +
+                  " invalid previousBlockHash:\n" +
+                  block.previousBlockHash
+              );
+          } while (++height < this.height);
+          if (!errorLog.length) {
+            console.log("No errors found in blockchain.");
+            return resolve();
+          }
+          errorLog.forEach(e => console.log(e));
+          return resolve();
+        })
+    );
   }
 }
 

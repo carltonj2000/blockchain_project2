@@ -30,6 +30,7 @@
       "node --inspect-brk ./node_modules/.bin/jest -it \"add multiple to blockchain\"",
     "l": "jest -t \"show blockchain\" > bc3.txt",
     "m": "FILE=bc3.txt jest -t \"process\" > bc3.json",
+    "n": "jest -t \"validate blockchain\"",
     "atom":
       "yarn a && yarn b && yarn c && yarn d && yarn e && yarn f && yarn g && yarn h && yarn i && yarn j && yarn k && yarn l && yarn m"
   },

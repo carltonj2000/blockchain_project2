@@ -23,11 +23,17 @@ test("add one to blockchain", done => {
   blockchain.finishActions().then(() => done());
 });
 
-test("add multiple to blockchain async", async done => {
+test("add multiple to blockchain", done => {
   let blockchain = new Blockchain();
   for (let i = 0; i < 10; i++) {
     blockchain.addBlock(new Block(`test data ${i}`));
   }
+  blockchain.finishActions().then(() => done());
+});
+
+test("validate blockchain", done => {
+  let blockchain = new Blockchain();
+  blockchain.validateChain();
   blockchain.finishActions().then(() => done());
 });
 
