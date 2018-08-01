@@ -1,60 +1,31 @@
 const { Blockchain, Block, chainDB } = require("./simpleChain");
-// utility used to remove the blockchain storage directory
-const rimraf = require("rimraf");
+const rimraf = require("rimraf"); // utility to remove a non empty directory
 
-test.skip("generate block chain", () => {
+test("new blockchain", done => {
   // remove any previous presisted blockchains
-  rimraf.sync(chainDB, e => {
-    console.log(e);
-    return;
-  });
-
-  let blockchain = new Blockchain();
-
-  expect(blockchain).not.toBe(null);
-
-  for (var i = 0; i <= 10; i++) {
-    blockchain.addBlock(new Block("test data " + i));
-  }
-
-  blockchain.validateChain();
-
-  let inducedErrorBlocks = [2, 4, 7];
-  for (var i = 0; i < inducedErrorBlocks.length; i++) {
-    blockchain.chain[inducedErrorBlocks[i]].data = "induced chain error";
-  }
-
-  blockchain.validateChain();
-});
-
-test("new blockchain", async done => {
-  // remove any previous presisted blockchains
-  await rimraf(chainDB, async e => {
+  rimraf(chainDB, e => {
     if (e) return console.log(e);
     let blockchain = new Blockchain();
-    await blockchain.showBc();
+    blockchain.cleanUp().then(() => done());
   });
-  done();
 });
 
-test("show blockchain", async done => {
+test("show blockchain", done => {
   let blockchain = new Blockchain();
-  await blockchain.showBc();
-  done();
+  blockchain.showBc().then(() => done());
 });
 
-test("add one to blockchain", async done => {
+test("add one to blockchain", done => {
   let blockchain = new Blockchain();
-  await blockchain.addBlock(new Block("test data carlton"));
-  await blockchain.showBc();
-  done();
+  blockchain.addBlock(new Block("test data carlton"));
+  blockchain.showBc().then(() => done());
 });
 
 test("add multiple to blockchain async", async done => {
   let blockchain = new Blockchain();
   for (let i = 0; i < 10; i++) {
     console.log(`call ${i}`);
-    await blockchain.addBlock(new Block(`test data ${i}`));
+    blockchain.addBlock(new Block(`test data ${i}`));
   }
   done();
 });
@@ -108,8 +79,29 @@ test("process", () => {
   console.log(`saw ${blocks} blocks`);
 });
 
-test("env", () => {
-  console.log(process.env.FILE);
+test.skip("generate block chain", () => {
+  // remove any previous presisted blockchains
+  rimraf.sync(chainDB, e => {
+    console.log(e);
+    return;
+  });
+
+  let blockchain = new Blockchain();
+
+  expect(blockchain).not.toBe(null);
+
+  for (var i = 0; i <= 10; i++) {
+    blockchain.addBlock(new Block("test data " + i));
+  }
+
+  blockchain.validateChain();
+
+  let inducedErrorBlocks = [2, 4, 7];
+  for (var i = 0; i < inducedErrorBlocks.length; i++) {
+    blockchain.chain[inducedErrorBlocks[i]].data = "induced chain error";
+  }
+
+  blockchain.validateChain();
 });
 
 test("scratchpad1", done => {
@@ -163,4 +155,22 @@ test("scratchpad3", async done => {
   console.log(await number);
   console.log(await number);
   done();
+});
+
+test("scratchpad4", done => {
+  const log = msg => console.log(msg);
+  log("hi");
+  console.log("scratchpad4");
+  let inProgress = Promise.resolve();
+  inProgress = inProgress.then(
+    _ => new Promise(resolve => setTimeout(() => log("one") || resolve(), 200))
+  );
+  inProgress = inProgress.then(
+    _ => new Promise(resolve => setTimeout(() => log("two") || resolve(), 200))
+  );
+  inProgress = inProgress.then(
+    _ =>
+      new Promise(resolve => setTimeout(() => log("three") || resolve(), 200))
+  );
+  inProgress.then(() => done());
 });
