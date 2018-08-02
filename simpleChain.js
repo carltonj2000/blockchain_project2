@@ -190,35 +190,46 @@ class Blockchain {
 
   // Validate blockchain
   validateChain() {
-    this.inProgress = this.inProgress.then(
-      () =>
-        new Promise((resolve, reject) => {
-          let height = 0;
-          let previousBlock = null;
-          let errorLog = [];
-          do {
-            this.getBlock(height).then(block => {
-              this.validateBlock(block, errorLog);
-              if (
-                previousBlock &&
-                previousBlock.hash !== block.previousBlockHash
-              )
-                errorLog.push(
-                  "Block #" +
-                    block.height +
-                    " invalid previousBlockHash:\n" +
-                    block.previousBlockHash
-                );
+    let previousBlock = null;
+    let errorLog = [];
+    this.inProgress = this.inProgress.then(() => {
+      for (let height = 0; height <= this.height; height++) {
+        this.inProgress = this.inProgress.then(() => {
+          if (height < this.height) {
+            return new Promise((resolve, reject) => {
+              this.getBlock(height)
+                .then(block => {
+                  this.validateBlock(block, errorLog);
+                  if (
+                    previousBlock &&
+                    previousBlock.hash !== block.previousBlockHash
+                  )
+                    errorLog.push(
+                      "Block #" +
+                        block.height +
+                        " invalid previousBlockHash:\n" +
+                        block.previousBlockHash
+                    );
+                  return resolve(height++);
+                })
+                .catch(e => {
+                  console.log(`Failed verifying block ${height}.`, e);
+                  return reject(e);
+                });
             });
-          } while (++height < this.height);
-          if (!errorLog.length) {
-            console.log("No errors found in blockchain.");
-            return resolve();
+          } else {
+            return new Promise((resolve, reject) => {
+              if (!errorLog.length) {
+                console.log("No errors found in blockchain.");
+                return resolve();
+              }
+              errorLog.forEach(e => console.log(e));
+              return resolve();
+            });
           }
-          errorLog.forEach(e => console.log(e));
-          return resolve();
-        })
-    );
+        });
+      }
+    });
   }
 
   induceErrorData(height, data) {
