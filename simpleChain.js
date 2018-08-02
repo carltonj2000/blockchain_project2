@@ -4,7 +4,7 @@
 |  =============================================================*/
 
 const level = require("level");
-const chainDB = "./blockchain";
+const chainDB = "./blockchainDB";
 const db = level(chainDB);
 
 /* ===== SHA256 with Crypto-js ===============================
@@ -76,7 +76,7 @@ class Blockchain {
     this.inProgress = this.inProgress.then(() => this.addBlockPromise(block));
   }
 
-  addBlockPromise(newBlock, chain = true) {
+  addBlockPromise(newBlock) {
     return new Promise((resolve, reject) => {
       // UTC timestamp
       newBlock.time = new Date()
@@ -101,11 +101,9 @@ class Blockchain {
         }
         this.previousHash = newBlock.hash;
         this.height += 1;
-        console.log(`Added block ${newBlock.height} => ${newBlock.body}`);
         return resolve(newBlock);
       });
     });
-    console.log("promise add");
   }
 
   getHeight() {
@@ -180,10 +178,10 @@ class Blockchain {
     } else {
       errorLog.push(
         "Block #" +
-          blockHeight +
+          block.height +
           " invalid hash:\n" +
           blockHash +
-          "<>" +
+          "\n<>\n" +
           validBlockHash
       );
       return false;
@@ -194,20 +192,24 @@ class Blockchain {
   validateChain() {
     this.inProgress = this.inProgress.then(
       () =>
-        new Promise(async (resolve, reject) => {
+        new Promise((resolve, reject) => {
           let height = 0;
           let previousBlock = null;
           let errorLog = [];
           do {
-            const block = await this.getBlock(height);
-            this.validateBlock(block, errorLog);
-            if (previousBlock && previousBlock.hash !== block.previousBlockHash)
-              errorLog.push(
-                "Block #" +
-                  block.height +
-                  " invalid previousBlockHash:\n" +
-                  block.previousBlockHash
-              );
+            this.getBlock(height).then(block => {
+              this.validateBlock(block, errorLog);
+              if (
+                previousBlock &&
+                previousBlock.hash !== block.previousBlockHash
+              )
+                errorLog.push(
+                  "Block #" +
+                    block.height +
+                    " invalid previousBlockHash:\n" +
+                    block.previousBlockHash
+                );
+            });
           } while (++height < this.height);
           if (!errorLog.length) {
             console.log("No errors found in blockchain.");
@@ -215,6 +217,29 @@ class Blockchain {
           }
           errorLog.forEach(e => console.log(e));
           return resolve();
+        })
+    );
+  }
+
+  induceErrorData(height, data) {
+    this.inProgress = this.inProgress.then(
+      () =>
+        new Promise((resolve, reject) => {
+          this.getBlock(height).then(block => {
+            block.data = data;
+            db.put(height, JSON.stringify(block), err => {
+              if (err) {
+                console.log(
+                  `Failed inducing block ${block.height} data error => ${
+                    block.body
+                  }.`,
+                  err
+                );
+                return reject(err);
+              }
+              return resolve(block);
+            });
+          });
         })
     );
   }
