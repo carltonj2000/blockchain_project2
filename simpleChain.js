@@ -34,37 +34,42 @@ class Block {
 class Blockchain {
   constructor() {
     this.inProgress = Promise.resolve();
-    this.inProgress = this.inProgress.then(() => this.getHeight());
-    this.inProgress = this.inProgress.then(
-      () =>
-        new Promise((resolve, reject) => {
-          if (this.height === 0) {
-            this.addBlockPromise(
-              new Block("First block in the chain - Genesis block")
-            )
-              .then(block => {
-                this.previousHash = block.hash;
-                this.height = block.height + 1;
-                return resolve();
-              })
-              .catch(e => {
-                console.log("Failed adding genisis block.", e);
-                return reject(e);
-              });
-          } else {
-            const height = this.height - 1;
-            this.getBlock(height)
-              .then(block => {
-                this.previousHash = block.hash;
-                return resolve();
-              })
-              .catch(e => {
-                console.log("Failed resolving last block.", e);
-                return reject(e);
-              });
-          }
-        })
-    );
+    this.inProgress = this.inProgress
+      .then(() => console.log("getting height") || this.getHeight())
+      .catch(e => console.error("Failed getting height.", e));
+    this.inProgress = this.inProgress
+      .then(
+        () =>
+          console.log("getting initial block ") ||
+          new Promise((resolve, reject) => {
+            if (this.height === 0) {
+              this.addBlockPromise(
+                new Block("First block in the chain - Genesis block")
+              )
+                .then(block => {
+                  this.previousHash = block.hash;
+                  this.height = block.height + 1;
+                  return resolve();
+                })
+                .catch(e => {
+                  console.error("Failed adding genisis block.", e);
+                  return reject(e);
+                });
+            } else {
+              const height = this.height - 1;
+              this.getBlockP(height)
+                .then(block => {
+                  this.previousHash = block.hash;
+                  return resolve();
+                })
+                .catch(e => {
+                  console.error("Failed resolving last block.", e);
+                  return reject(e);
+                });
+            }
+          })
+      )
+      .catch(e => console.error("Failed setting up initial chain.", e));
   }
 
   finishActions() {
@@ -73,7 +78,13 @@ class Blockchain {
 
   // Add new block
   addBlock(block) {
-    this.inProgress = this.inProgress.then(() => this.addBlockPromise(block));
+    if (block.constructor.name !== "Block") {
+      console.error(`Invalid block type.`);
+      return;
+    }
+    this.inProgress = this.inProgress
+      .then(() => this.addBlockPromise(block))
+      .catch(e => console.error("Failed adding block.", e));
   }
 
   addBlockPromise(newBlock) {
@@ -93,7 +104,7 @@ class Blockchain {
       // Adding block object to db
       db.put(newBlock.height, JSON.stringify(newBlock), err => {
         if (err) {
-          console.log(
+          console.error(
             `Failed adding block ${newBlock.height} => ${newBlock.body}.`,
             err
           );
@@ -125,43 +136,78 @@ class Blockchain {
   }
 
   show() {
-    const nextAction = new Promise((resolve, reject) => {
-      (async (resolve, reject) => {
-        try {
-          await this.inProgress;
-          for (let height = 0; height < this.height; height++) {
-            const block = await db.get(height);
-            console.log(block);
-          }
-          resolve();
-        } catch (e) {
-          console.log("Show blockchain failed!");
-          reject();
-        }
-      })(resolve, reject);
-    });
-    this.inProgress = this.inProgress.then(_ => nextAction);
+    this.inProgress = this.inProgress
+      .then(
+        () =>
+          new Promise((resolveOuter, rejectOuter) => {
+            for (let height = 0; height < this.height; height++) {
+              this.inProgress = this.inProgress
+                .then(
+                  () =>
+                    new Promise((resolve, reject) => {
+                      db.get(height)
+                        .then(block => {
+                          console.log(block);
+                          resolve();
+                        })
+                        .catch(e => {
+                          console.error(`Failed show block.`, e);
+                          reject();
+                        });
+                    })
+                )
+                .catch(e => {
+                  console.error(`Failed show block loop.`, e);
+                  rejectOuter();
+                });
+            }
+            resolveOuter();
+          })
+      )
+      .catch(e => console.error("Failed showing blockchain."));
   }
 
   // Get block height
   getBlockHeight() {
-    this.inProgress.then(() => {
-      return new Promise((resolve, reject) => {
-        console.log("height =", this.height);
-        return this.height;
-      });
-    });
+    this.inProgress
+      .then(
+        () =>
+          new Promise((resolve, reject) =>
+            console.log(`Height = ${this.height}`)
+          )
+      )
+      .catch(e => console.error(`Failed getting block height.`));
   }
 
   // get block
   getBlock(blockHeight) {
+    this.inProgress
+      .then(
+        () =>
+          new Promise((resolve, reject) => {
+            getBlockP
+              .then(block => {
+                console.log(`Block ${blockHeight} => ${block}.`);
+                return resolve();
+              })
+              .catch(e => {
+                console.error(`Failed getting block ${blockHeight}.`);
+                return reject();
+              });
+          })
+      )
+      .catch(e => console.error(`Failed getting block.`));
+  }
+
+  // get block
+  getBlockP(blockHeight) {
     // Get data from levelDB with key
     return new Promise((resolve, reject) => {
       db.get(blockHeight, (err, value) => {
         if (err) {
           if (err.notFound)
-            console.log(`Error! Did not find block ${blockHeight}.`);
-          console.log(`Error! Finding block ${blockHeight}`);
+            console.error(`Error! Did not find block ${blockHeight}.`);
+          console.error(`Error! Finding block ${blockHeight}`);
           return reject(err);
         }
         const block = JSON.parse(value);
@@ -172,15 +218,15 @@ class Blockchain {
 
   // validate block
   validateBlock(height, errorLog, showConsoleLogs = true) {
-    this.inProgress = this.inProgress.then(() =>
-      this.validateBlockP(height, errorLog, showConsoleLogs)
-    );
+    this.inProgress = this.inProgress
+      .then(() => this.validateBlockP(height, errorLog, showConsoleLogs))
+      .catch(e => console.error(`Failed block ${height} validation`));
   }
 
   // validate block
   validateBlockP(height, errorLog, showConsoleLogs = true) {
     return new Promise((resolve, reject) => {
-      this.getBlock(height)
+      this.getBlockP(height)
         .then(block => {
           // get block hash
           let blockHash = block.hash;
@@ -195,16 +241,16 @@ class Blockchain {
             if (showConsoleLogs) console.log(`Block ${height} validated.`);
             return resolve({ valid: true, block });
           } else {
-            const msg = `Block #${
+            const msg = `Block ${
               block.height
-            } invalid hash:\n ${blockHash} \n<>\n ${validBlockHash}`;
+            } invalid hash (saw <> expected):\n ${blockHash} \n<>\n ${validBlockHash}`;
             if (errorLog) errorLog.push(msg);
-            if (showConsoleLogs) console.log(msg);
+            if (showConsoleLogs) console.error(msg);
             return resolve({ valid: false, block });
           }
         })
         .catch(e => {
-          console.log(`Failed block ${height} validation.`, e);
+          console.error(`Failed block ${height} validation.`, e);
           reject(height);
         });
     });
@@ -212,70 +258,84 @@ class Blockchain {
 
   // Validate blockchain
   validateChain() {
-    let errorLog = [];
-    this.previousBlock = null;
-    this.inProgress = this.inProgress.then(() => {
-      for (let height = 0; height <= this.height; height++) {
-        this.inProgress = this.inProgress.then(() => {
-          if (height < this.height) {
-            return new Promise((resolve, reject) => {
-              this.validateBlockP(height, errorLog, false)
-                .then(({ valid, block }) => {
-                  if (
-                    this.previousBlock &&
-                    this.previousBlock.hash !== block.previousBlockHash
-                  )
-                    errorLog.push(
-                      `Block # ${
-                        block.height
-                      } invalid previousBlockHash (saw <> expected):\n${
-                        block.previousBlockHash
-                      } <> ${this.previousBlock.hash}`
-                    );
-                  this.previousBlock = block;
+    this.inProgress = this.inProgress
+      .then(() => {
+        let errorLog = [];
+        this.previousBlock = null;
+        for (let height = 0; height <= this.height; height++) {
+          this.inProgress = this.inProgress.then(() => {
+            if (height < this.height) {
+              return new Promise((resolve, reject) => {
+                this.validateBlockP(height, errorLog, false)
+                  .then(({ valid, block }) => {
+                    if (
+                      this.previousBlock &&
+                      this.previousBlock.hash !== block.previousBlockHash
+                    )
+                      errorLog.push(
+                        `Block ${
+                          block.height
+                        } invalid previousBlockHash (saw <> expected):\n${
+                          block.previousBlockHash
+                        } <> ${this.previousBlock.hash}`
+                      );
+                    this.previousBlock = block;
+                    return resolve();
+                  })
+                  .catch(e => {
+                    console.error(`Failed verifying block ${height}.`, e);
+                    return reject(e);
+                  });
+              });
+            } else {
+              return new Promise((resolve, reject) => {
+                if (!errorLog.length) {
+                  console.log("No errors found in blockchain.");
                   return resolve();
-                })
-                .catch(e => {
-                  console.log(`Failed verifying block ${height}.`, e);
-                  return reject(e);
-                });
-            });
-          } else {
-            return new Promise((resolve, reject) => {
-              if (!errorLog.length) {
-                console.log("No errors found in blockchain.");
+                }
+                errorLog.forEach(e => console.error(e));
                 return resolve();
-              }
-              errorLog.forEach(e => console.log(e));
-              return resolve();
-            });
-          }
-        });
-      }
-    });
+              });
+            }
+          });
+        }
+      })
+      .catch(e => console.error("Failed validating chain.", e));
   }
 
   induceErrorData(height, data) {
-    this.inProgress = this.inProgress.then(
-      () =>
-        new Promise((resolve, reject) => {
-          this.getBlock(height).then(block => {
-            block.data = data;
-            db.put(height, JSON.stringify(block), err => {
-              if (err) {
-                console.log(
-                  `Failed inducing block ${block.height} data error => ${
-                    block.body
-                  }.`,
-                  err
-                );
-                return reject(err);
-              }
-              return resolve(block);
-            });
-          });
-        })
-    );
+    this.inProgress = this.inProgress
+      .then(
+        () =>
+          new Promise((resolve, reject) => {
+            this.getBlockP(height)
+              .then(block => {
+                block.data = data;
+                db.put(height, JSON.stringify(block), err => {
+                  if (err) {
+                    console.error(
+                      `Failed inducing block ${block.height} data error => ${
+                        block.body
+                      }.`,
+                      err
+                    );
+                    return reject(err);
+                  }
+                  return resolve(block);
+                });
+              })
+              .catch(e => {
+                console.error(`Failed getting block ${height}.`, e);
+                return reject(e);
+              });
+          })
+      )
+      .catch(e =>
+        console.error(
+          `Failed inducing data error at block ${height} with data => ${data}.`,
+          e
+        )
+      );
   }
 }
 

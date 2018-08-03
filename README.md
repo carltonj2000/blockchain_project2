@@ -2,7 +2,8 @@
 
 This repository contains the code for project 2 of the
 [Udacity Blockchain Nanodegree](https://www.udacity.com/course/blockchain-developer-nanodegree--nd1309).
-If required the code functionality can be tested via [jestjs](https://jestjs.io) as follows.
+If required the code functionality can be tested by running `node test.js` or
+via [jestjs](https://jestjs.io) as follows.
 
 ```
 yarn install

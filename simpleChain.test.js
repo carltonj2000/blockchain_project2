@@ -1,11 +1,19 @@
 const { Blockchain, Block, chainDB } = require("./simpleChain");
 const rimraf = require("rimraf"); // utility to remove a non empty directory
 
+const sleep = ms => new Promise(resolve => setTimeout(() => resolve(), ms));
 test("new blockchain", async done => {
   // remove any previous presisted blockchains
-  await rimraf(chainDB, e => e && console.log("Failed deleting DB.", e));
+  await rimraf(chainDB, e => e && console.error("Failed deleting DB.", e));
+  console.log("here 1", Date.now());
+  await sleep(1000);
+  console.log("here 2", Date.now());
   let blockchain = new Blockchain();
-  blockchain.finishActions().then(() => done());
+  console.log("here 3", Date.now());
+  blockchain
+    .finishActions()
+    .then(() => done())
+    .catch(e => console.log(e) || done());
 });
 
 test("show blockchain", done => {
@@ -59,14 +67,12 @@ test("induce errors in blockchain", done => {
 
 test("full test", async done => {
   // remove any previous presisted blockchains
-  await rimraf(chainDB, e => e && console.log("Failed deleting DB.", e));
+  await rimraf(chainDB, e => e && console.error("Failed deleting DB.", e));
   let blockchain = new Blockchain();
 
   for (var i = 0; i <= 10; i++) {
     blockchain.addBlock(new Block("test data " + i));
   }
-
-  //blockchain.validateChain();
 
   let inducedErrorBlocks = [2, 4, 7];
   for (var i = 0; i < inducedErrorBlocks.length; i++) {
