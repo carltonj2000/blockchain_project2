@@ -8,8 +8,10 @@
     "b": "jest -t \"show blockchain\"",
     "c": "jest -t \"add one to blockchain\"",
     "d": "jest -t \"add multiple to blockchain\"",
-    "e": "jest -t \"validate blockchain\"",
-    "f": "jest -t \"induce errors in blockchain\"",
+    "e": "jest -t \"validate one block\"",
+    "f": "jest -t \"validate multiple blocks\"",
+    "g": "jest -t \"validate blockchain\"",
+    "h": "jest -t \"induce errors in blockchain\"",
     "z": "jest -t \"full test\""
   },
   "author": "",

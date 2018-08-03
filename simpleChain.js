@@ -124,7 +124,7 @@ class Blockchain {
     });
   }
 
-  showBc() {
+  show() {
     const nextAction = new Promise((resolve, reject) => {
       (async (resolve, reject) => {
         try {
@@ -145,7 +145,12 @@ class Blockchain {
 
   // Get block height
   getBlockHeight() {
-    return this.chain.length - 1;
+    this.inProgress.then(() => {
+      return new Promise((resolve, reject) => {
+        console.log("height =", this.height);
+        return this.height;
+      });
+    });
   }
 
   // get block
@@ -155,8 +160,9 @@ class Blockchain {
       db.get(blockHeight, (err, value) => {
         if (err) {
           if (err.notFound)
-            return reject(`Error! Did not find block ${blockHeight}.`, err);
-          return reject(`Error! Finding block ${blockHeight}`, err);
+            console.log(`Error! Did not find block ${blockHeight}.`);
+          console.log(`Error! Finding block ${blockHeight}`);
+          return reject(err);
         }
         const block = JSON.parse(value);
         return resolve(block);
@@ -165,52 +171,69 @@ class Blockchain {
   }
 
   // validate block
-  validateBlock(block, errorLog) {
-    // get block hash
-    let blockHash = block.hash;
-    // remove block hash to test block integrity
-    block.hash = "";
-    // generate block hash
-    let validBlockHash = SHA256(JSON.stringify(block)).toString();
-    // Compare
-    if (blockHash === validBlockHash) {
-      return true;
-    } else {
-      errorLog.push(
-        "Block #" +
-          block.height +
-          " invalid hash:\n" +
-          blockHash +
-          "\n<>\n" +
-          validBlockHash
-      );
-      return false;
-    }
+  validateBlock(height, errorLog, showConsoleLogs = true) {
+    this.inProgress = this.inProgress.then(() =>
+      this.validateBlockP(height, errorLog, showConsoleLogs)
+    );
+  }
+
+  // validate block
+  validateBlockP(height, errorLog, showConsoleLogs = true) {
+    return new Promise((resolve, reject) => {
+      this.getBlock(height)
+        .then(block => {
+          // get block hash
+          let blockHash = block.hash;
+          // remove block hash to test block integrity
+          block.hash = "";
+          // generate block hash
+          let validBlockHash = SHA256(JSON.stringify(block)).toString();
+          // restore the hash post hash calculation
+          block.hash = blockHash;
+          // Compare
+          if (blockHash === validBlockHash) {
+            if (showConsoleLogs) console.log(`Block ${height} validated.`);
+            return resolve({ valid: true, block });
+          } else {
+            const msg = `Block #${
+              block.height
+            } invalid hash:\n ${blockHash} \n<>\n ${validBlockHash}`;
+            if (errorLog) errorLog.push(msg);
+            if (showConsoleLogs) console.log(msg);
+            return resolve({ valid: false, block });
+          }
+        })
+        .catch(e => {
+          console.log(`Failed block ${height} validation.`, e);
+          reject(height);
+        });
+    });
   }
 
   // Validate blockchain
   validateChain() {
-    let previousBlock = null;
     let errorLog = [];
+    this.previousBlock = null;
     this.inProgress = this.inProgress.then(() => {
       for (let height = 0; height <= this.height; height++) {
         this.inProgress = this.inProgress.then(() => {
           if (height < this.height) {
             return new Promise((resolve, reject) => {
-              this.getBlock(height)
-                .then(block => {
-                  this.validateBlock(block, errorLog);
+              this.validateBlockP(height, errorLog, false)
+                .then(({ valid, block }) => {
                   if (
-                    previousBlock &&
-                    previousBlock.hash !== block.previousBlockHash
+                    this.previousBlock &&
+                    this.previousBlock.hash !== block.previousBlockHash
                   )
                     errorLog.push(
-                      "Block #" +
-                        block.height +
-                        " invalid previousBlockHash:\n" +
+                      `Block # ${
+                        block.height
+                      } invalid previousBlockHash (saw <> expected):\n${
                         block.previousBlockHash
+                      } <> ${this.previousBlock.hash}`
                     );
-                  return resolve(height++);
+                  this.previousBlock = block;
+                  return resolve();
                 })
                 .catch(e => {
                   console.log(`Failed verifying block ${height}.`, e);
