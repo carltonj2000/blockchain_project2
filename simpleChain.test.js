@@ -1,15 +1,9 @@
 const { Blockchain, Block, chainDB } = require("./simpleChain");
 const rimraf = require("rimraf"); // utility to remove a non empty directory
 
-const sleep = ms => new Promise(resolve => setTimeout(() => resolve(), ms));
 test("new blockchain", async done => {
-  // remove any previous presisted blockchains
-  await rimraf(chainDB, e => e && console.error("Failed deleting DB.", e));
-  console.log("here 1", Date.now());
-  await sleep(1000);
-  console.log("here 2", Date.now());
+  await rimraf(chainDB, e => e && console.error("Failed deleting DB", e));
   let blockchain = new Blockchain();
-  console.log("here 3", Date.now());
   blockchain
     .finishActions()
     .then(() => done())
@@ -19,6 +13,12 @@ test("new blockchain", async done => {
 test("show blockchain", done => {
   let blockchain = new Blockchain();
   blockchain.show();
+  blockchain.finishActions().then(() => done());
+});
+
+test("get block", done => {
+  let blockchain = new Blockchain();
+  blockchain.getBlock(0);
   blockchain.finishActions().then(() => done());
 });
 

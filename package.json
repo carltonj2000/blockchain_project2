@@ -6,12 +6,13 @@
   "scripts": {
     "a": "jest -t \"new blockchain\"",
     "b": "jest -t \"show blockchain\"",
-    "c": "jest -t \"add one to blockchain\"",
-    "d": "jest -t \"add multiple to blockchain\"",
-    "e": "jest -t \"validate one block\"",
-    "f": "jest -t \"validate multiple blocks\"",
-    "g": "jest -t \"validate blockchain\"",
-    "h": "jest -t \"induce errors in blockchain\"",
+    "c": "jest -t \"get block\"",
+    "d": "jest -t \"add one to blockchain\"",
+    "e": "jest -t \"add multiple to blockchain\"",
+    "f": "jest -t \"validate one block\"",
+    "g": "jest -t \"validate multiple blocks\"",
+    "h": "jest -t \"validate blockchain\"",
+    "i": "jest -t \"induce errors in blockchain\"",
     "z": "jest -t \"full test\""
   },
   "author": "",
@@ -23,5 +24,8 @@
   "devDependencies": {
     "jest": "^23.4.1",
     "rimraf": "^2.6.2"
+  },
+  "jest": {
+    "testEnvironment": "node"
   }
 }

@@ -35,12 +35,11 @@ class Blockchain {
   constructor() {
     this.inProgress = Promise.resolve();
     this.inProgress = this.inProgress
-      .then(() => console.log("getting height") || this.getHeight())
+      .then(() => this.getHeight())
       .catch(e => console.error("Failed getting height.", e));
     this.inProgress = this.inProgress
       .then(
         () =>
-          console.log("getting initial block ") ||
           new Promise((resolve, reject) => {
             if (this.height === 0) {
               this.addBlockPromise(
@@ -185,9 +184,11 @@ class Blockchain {
       .then(
         () =>
           new Promise((resolve, reject) => {
-            getBlockP
+            this.getBlockP(blockHeight)
               .then(block => {
-                console.log(`Block ${blockHeight} => ${block}.`);
+                console.log(
+                  `Block ${blockHeight} => ${JSON.stringify(block)}.`
+                );
                 return resolve();
               })
               .catch(e => {
